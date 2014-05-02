@@ -218,11 +218,18 @@ class Redis
     end
 
     def io
-      yield
-    rescue TimeoutError
-      raise TimeoutError, "Connection timed out"
-    rescue Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNABORTED, Errno::EBADF, Errno::EINVAL => e
-      raise ConnectionError, "Connection lost (%s)" % [e.class.name.split("::").last]
+      sleep_interval = 5
+      loop do
+        begin
+          return yield
+        rescue TimeoutError
+          p "Connection timed out-------------Reconnecting"
+          sleep sleep_interval
+        rescue Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNABORTED, Errno::EBADF, Errno::EINVAL => e
+          p 'Connection lost--------------Reconnecting'
+          sleep sleep_interval
+        end
+      end
     end
 
     def read
@@ -283,12 +290,20 @@ class Redis
     end
 
     def establish_connection
-      @connection = @options[:driver].connect(@options.dup)
-
-    rescue TimeoutError
-      raise CannotConnectError, "Timed out connecting to Redis on #{location}"
-    rescue Errno::ECONNREFUSED
-      raise CannotConnectError, "Error connecting to Redis on #{location} (ECONNREFUSED)"
+      sleep_interval = 5
+      loop do
+        begin
+          @connection = @options[:driver].connect(@options.dup)
+          break
+          p 'Working properly.'
+        rescue TimeoutError
+          p "Timed out connecting to Redis on #{location} ------ Reconnecting."
+          sleep sleep_interval
+        rescue Errno::ECONNREFUSED
+          p "Error connecting to Redis on #{location} (ECONNREFUSED) ------- Reconnecting."
+          sleep sleep_interval
+        end
+      end
     end
 
     def ensure_connected
