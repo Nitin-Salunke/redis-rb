@@ -228,6 +228,7 @@ class Redis
         rescue Errno::ECONNRESET, Errno::EPIPE, Errno::ECONNABORTED, Errno::EBADF, Errno::EINVAL => e
           p 'Connection lost--------------Reconnecting'
           sleep sleep_interval
+          reconnect
         end
       end
     end
